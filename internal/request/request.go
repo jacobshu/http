@@ -7,6 +7,8 @@ import (
 	"io"
 	"slices"
 	"strings"
+
+	"github.com/jacobshu/http/internal/logger"
 )
 
 var (
@@ -36,6 +38,7 @@ type RequestLine struct {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
+
 	bytes, err := io.ReadAll(reader)
 	if err != nil {
 		fmt.Println("error reading request:", err)
@@ -50,12 +53,15 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 }
 
 func parseRequestLine(data []byte) (*RequestLine, error) {
+	log := logger.SetupLogger("development")
 	idx := bytes.Index(data, []byte(crlf))
 	if idx == -1 {
 		return nil, fmt.Errorf("could not find CRLF in request line")
 	}
 
 	requestLineStr := string(data[:idx])
+	log.Info(requestLineStr)
+
 	requestLine, err := requestLineFromString(requestLineStr)
 	if err != nil {
 		return nil, err

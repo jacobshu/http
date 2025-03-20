@@ -2,9 +2,9 @@ package request
 
 import (
 	"io"
-	"strings"
 	"testing"
 
+	"github.com/jacobshu/http/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,15 +18,17 @@ type chunkReader struct {
 // Read reads up to len(p) or numBytesPerRead bytes from the string per call
 // its useful for simulating reading a variable number of bytes per chunk from a network connection
 func (cr *chunkReader) Read(p []byte) (n int, err error) {
+	log := logger.SetupLogger("development")
 	if cr.pos >= len(cr.data) {
 		return 0, io.EOF
 	}
 	endIndex := cr.pos + cr.numBytesPerRead
-	if endIndex > len(cr.data) {
-		endIndex = len(cr.data)
-	}
+	endIndex = min(endIndex, len(cr.data))
+
 	n = copy(p, cr.data[cr.pos:endIndex])
 	cr.pos += n
+
+	log.Debug("reader state", "pos", cr.pos, "n", n)
 	if n > cr.numBytesPerRead {
 		n = cr.numBytesPerRead
 		cr.pos -= n - cr.numBytesPerRead

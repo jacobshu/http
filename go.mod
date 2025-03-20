@@ -2,7 +2,10 @@ module github.com/jacobshu/http
 
 go 1.24.1
 
-require github.com/stretchr/testify v1.10.0
+require (
+	github.com/golang-cz/devslog v0.0.11
+	github.com/stretchr/testify v1.10.0
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
