@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,15 @@ var (
 	ErrInvalidRequestLineOrder   = errors.New("invalid order of request line parameters\n")
 )
 
+const crlf = "\r\n"
+
+type ParserState int
+
+const (
+	initialized ParserState = iota
+	done
+)
+
 type Request struct {
 	RequestLine RequestLine
 }
@@ -26,16 +36,38 @@ type RequestLine struct {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	req, err := io.ReadAll(reader)
+	bytes, err := io.ReadAll(reader)
 	if err != nil {
 		fmt.Println("error reading request:", err)
 	}
 
-	lines := strings.Split(string(req), "\r\n")
-	parts := strings.Split(lines[0], " ")
+	requestLine, err := parseRequestLine(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Request{RequestLine: *requestLine}, nil
+}
+
+func parseRequestLine(data []byte) (*RequestLine, error) {
+	idx := bytes.Index(data, []byte(crlf))
+	if idx == -1 {
+		return nil, fmt.Errorf("could not find CRLF in request line")
+	}
+
+	requestLineStr := string(data[:idx])
+	requestLine, err := requestLineFromString(requestLineStr)
+	if err != nil {
+		return nil, err
+	}
+	return requestLine, nil
+}
+
+func requestLineFromString(str string) (*RequestLine, error) {
+	parts := strings.Split(str, " ")
 
 	if len(parts) != 3 {
-		return &Request{}, ErrInvalidRequestLineNumber
+		return nil, ErrInvalidRequestLineNumber
 	}
 
 	rl := RequestLine{
@@ -45,21 +77,21 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	}
 
 	fmt.Println(rl)
-	r := Request{RequestLine: rl}
 
 	if !isValidMethod(rl.Method) {
-		return &Request{}, ErrInvalidRequestLineMethod
+		return nil, ErrInvalidRequestLineMethod
 	}
 
 	if !isValidVersion(rl.HttpVersion) {
-		return &Request{}, ErrInvalidRequestLineVersion
+		return nil, ErrInvalidRequestLineVersion
 	}
 
 	if isValidMethod(rl.HttpVersion) || isValidMethod(rl.RequestTarget) || isValidVersion(rl.RequestTarget) || isValidVersion(rl.Method) {
-		return &Request{}, ErrInvalidRequestLineOrder
+		return nil, ErrInvalidRequestLineOrder
 	}
 
-	return &r, nil
+	return &rl, nil
+
 }
 
 func isValidVersion(v string) bool {
